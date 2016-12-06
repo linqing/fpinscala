@@ -1,5 +1,9 @@
 [![Build status](https://travis-ci.org/fpinscala/fpinscala.svg?branch=master)](https://travis-ci.org/fpinscala/fpinscala) [![Join the chat at https://gitter.im/fpinscala/fpinscala](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/fpinscala/fpinscala?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge) 
 
+此乃克隆https://github.com/fpinscala/fpinscala，修改code style，并增加answers中的中文注释的版本。
+
+
+
 一日，祖师登坛高坐，唤集诸仙，开讲大道。真个是：
 
     天花乱坠，地涌金莲。
