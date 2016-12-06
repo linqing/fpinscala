@@ -13,13 +13,13 @@ object IO0 {
 
                              */
   trait IO { self =>
-    def run: Unit
+    def run(): Unit
     def ++(io: IO): IO = new IO {
-      def run: Unit = { self.run; io.run }
+      def run(): Unit = { self.run(); io.run() }
     }
   }
   object IO {
-    def empty: IO = new IO { def run: Unit = () }
+    def empty: IO = new IO { def run(): Unit = () }
   }
 
                             /*
@@ -35,7 +35,7 @@ object IO0 {
     (f - 32) * 5.0/9.0
 
   // Ordinary code with side effects
-  def converter: Unit = {
+  def converter(): Unit = {
     println("Enter a temperature in degrees Fahrenheit: ")
     val d = readLine.toDouble
     println(fahrenheitToCelsius(d))
@@ -432,7 +432,7 @@ object IO3 {
 
     def run: Option[String] =
       try Some(readLine())
-      catch { case e: Exception => None }
+      catch { case _: Exception => None }
 
     def toState = ConsoleState { bufs =>
       bufs.in match {
@@ -446,7 +446,7 @@ object IO3 {
   case class PrintLine(line: String) extends Console[Unit] {
     def toPar: Par[Unit] = Par.lazyUnit(println(line))
     def toThunk: () => Unit = () => println(line)
-    def toReader = ConsoleReader { s => () } // noop
+    def toReader = ConsoleReader { _ => () } // noop
     def toState = ConsoleState { bufs => ((), bufs.copy(out = bufs.out :+ line)) } // append to the output
   }
 

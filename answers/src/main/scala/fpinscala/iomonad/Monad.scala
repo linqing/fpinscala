@@ -46,7 +46,7 @@ trait Monad[F[_]] extends Functor[F] {
   def foldM_[A,B](l: Stream[A])(z: B)(f: (B,A) => F[B]): F[Unit] =
     skip { foldM(l)(z)(f) }
   def foreachM[A](l: Stream[A])(f: A => F[Unit]): F[Unit] =
-    foldM_(l)(())((u,a) => skip(f(a)))
+    foldM_(l)(())((_, a) => skip(f(a)))
   def seq[A,B,C](f: A => F[B])(g: B => F[C]): A => F[C] =
     f andThen (fb => flatMap(fb)(g))
 

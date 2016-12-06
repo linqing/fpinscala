@@ -59,7 +59,7 @@ object Option {
     }
     // A `catch` block is just a pattern matching block like the ones we've seen. `case e: Exception` is a pattern
     // that matches any `Exception`, and it binds this value to the identifier `e`. The match returns the value 43.
-    catch { case e: Exception => 43 }
+    catch { case _: Exception => 43 }
   }
 
   def failingFn2(i: Int): Int = {
@@ -68,7 +68,7 @@ object Option {
       // A thrown Exception can be given any type; here we're annotating it with the type `Int`
       x + ((throw new Exception("fail!")): Int)
     }
-    catch { case e: Exception => 43 }
+    catch { case _: Exception => 43 }
   }
 
   def mean(xs: Seq[Double]): Option[Double] =

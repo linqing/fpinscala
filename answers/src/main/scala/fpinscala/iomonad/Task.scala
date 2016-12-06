@@ -32,7 +32,7 @@ case class Task[A](get: IO[Either[Throwable, A]]) {
 
   def or[B>:A](t2: Task[B]): Task[B] =
     Task(this.get flatMap {
-      case Left(e) => t2.get
+      case Left(_) => t2.get
       case a => IO(a)
     })
 

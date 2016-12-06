@@ -74,7 +74,7 @@ trait Parsers[Parser[+_]] { self => // so inner classes may call methods of trai
   /** Sequences two parsers, ignoring the result of the second.
     * We wrap the ignored half in slice, since we don't care about its result. */
   def skipR[A](p: Parser[A], p2: => Parser[Any]): Parser[A] =
-    map2(p, slice(p2))((a,b) => a)
+    map2(p, slice(p2))((a, _) => a)
 
   def opt[A](p: Parser[A]): Parser[Option[A]] =
     p.map(Some(_)) or succeed(None)

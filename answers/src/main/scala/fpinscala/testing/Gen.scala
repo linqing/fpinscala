@@ -91,7 +91,7 @@ object Prop {
       val props: Stream[Prop] =
         Stream.from(0).take((n min max) + 1).map(i => forAll(g(i))(f))
       val prop: Prop =
-        props.map(p => Prop { (max, n, rng) =>
+        props.map(p => Prop { (max, _, rng) =>
           p.run(max, casesPerSize, rng)
         }).toList.reduce(_ && _)
       prop.run(max,n,rng)
@@ -283,7 +283,7 @@ object Gen {
       Par.fork { Par.map2(p, Par.unit(i))(_ + _) }))
 
   def genStringIntFn(g: Gen[Int]): Gen[String => Int] =
-    g map (i => (s => i))
+    g map (i => (_ => i))
 }
 
 case class SGen[+A](g: Int => Gen[A]) {

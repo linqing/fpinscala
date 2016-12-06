@@ -47,12 +47,6 @@ object MyModule {
     loop(n, 0, 1)
   }
 
-  // This definition and `formatAbs` are very similar..
-  private def formatFactorial(n: Int) = {
-    val msg = "The factorial of %d is %d."
-    msg.format(n, factorial(n))
-  }
-
   // We can generalize `formatAbs` and `formatFactorial` to
   // accept a _function_ as a parameter
   def formatResult(name: String, n: Int, f: Int => Int): String = {

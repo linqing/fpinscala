@@ -114,11 +114,11 @@ object Sliceable extends Parsers[Parser] {
   }
 
   // consume no characters and succeed with the given value
-  def succeed[A](a: A): Parser[A] = s => Success(a, 0)
+  def succeed[A](a: A): Parser[A] = _ => Success(a, 0)
 
   def or[A](p: Parser[A], p2: => Parser[A]): Parser[A] =
     s => p(s) match {
-      case Failure(e,false) => p2(s)
+      case Failure(_,false) => p2(s)
       case r => r // committed failure or success skips running `p2`
     }
 
@@ -243,12 +243,11 @@ object Sliceable extends Parsers[Parser] {
    */
   override def many[A](p: Parser[A]): Parser[List[A]] =
     s => {
-      var nConsumed: Int = 0
       if (s.isSliced) {
         def go(p: Parser[String], offset: Int): Result[String] =
           p(s.advanceBy(offset)) match {
-            case f@Failure(e,true) => f
-            case Failure(e,_) => Slice(offset)
+            case f@Failure(_,true) => f
+            case Failure(_,_) => Slice(offset)
             case Slice(n) => go(p, offset+n)
             case Success(_,_) => sys.error("sliced parser should not return success, only slice")
           }
@@ -259,8 +258,8 @@ object Sliceable extends Parsers[Parser] {
         def go(p: Parser[A], offset: Int): Result[List[A]] = {
           p(s.advanceBy(offset)) match {
             case Success(a,n) => buf += a; go(p, offset+n)
-            case f@Failure(e,true) => f
-            case Failure(e,_) => Success(buf.toList,offset)
+            case f@Failure(_,true) => f
+            case Failure(_,_) => Success(buf.toList,offset)
             case Slice(n) =>
               buf += s.input.substring(offset,offset+n).
                      asInstanceOf[A]

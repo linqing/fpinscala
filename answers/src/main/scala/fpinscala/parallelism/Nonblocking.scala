@@ -17,20 +17,20 @@ object Nonblocking {
     def run[A](es: ExecutorService)(p: Par[A]): A = {
       val ref = new java.util.concurrent.atomic.AtomicReference[A] // A mutable, threadsafe reference, to use for storing the result
       val latch = new CountDownLatch(1) // A latch which, when decremented, implies that `ref` has the result
-      p(es) { a => ref.set(a); latch.countDown } // Asynchronously set the result, and decrement the latch
-      latch.await // Block until the `latch.countDown` is invoked asynchronously
+      p(es) { a => ref.set(a); latch.countDown() } // Asynchronously set the result, and decrement the latch
+      latch.await() // Block until the `latch.countDown` is invoked asynchronously
       ref.get // Once we've passed the latch, we know `ref` has been set, and return its value
     }
 
     def unit[A](a: A): Par[A] =
-      es => new Future[A] {
+      _ => new Future[A] {
         def apply(cb: A => Unit): Unit =
           cb(a)
       }
 
     /** A non-strict version of `unit` */
     def delay[A](a: => A): Par[A] =
-      es => new Future[A] {
+      _ => new Future[A] {
         def apply(cb: A => Unit): Unit =
           cb(a)
       }
@@ -45,7 +45,7 @@ object Nonblocking {
      * Helper function for constructing `Par` values out of calls to non-blocking continuation-passing-style APIs.
      * This will come in handy in Chapter 13.
      */
-    def async[A](f: (A => Unit) => Unit): Par[A] = es => new Future[A] {
+    def async[A](f: (A => Unit) => Unit): Par[A] = _ => new Future[A] {
       def apply(k: A => Unit): Unit = f(k)
     }
 

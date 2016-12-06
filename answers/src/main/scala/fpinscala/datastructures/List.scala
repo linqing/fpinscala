@@ -165,7 +165,7 @@ object List { // `List` companion object. Contains functions for creating and wo
   def sum3(l: List[Int]): Int = foldLeft(l, 0)(_ + _)
   def product3(l: List[Double]): Double = foldLeft(l, 1.0)(_ * _)
 
-  def length2[A](l: List[A]): Int = foldLeft(l, 0)((acc,h) => acc + 1)
+  def length2[A](l: List[A]): Int = foldLeft(l, 0)((acc, _) => acc + 1)
 
   def reverse[A](l: List[A]): List[A] = foldLeft(l, List[A]())((acc,h) => Cons(h,acc))
 
@@ -322,6 +322,6 @@ object List { // `List` companion object. Contains functions for creating and wo
   def hasSubsequence[A](sup: List[A], sub: List[A]): Boolean = sup match {
     case Nil => sub == Nil
     case _ if startsWith(sup, sub) => true
-    case Cons(h,t) => hasSubsequence(t, sub)
+    case Cons(_,t) => hasSubsequence(t, sub)
   }
 }

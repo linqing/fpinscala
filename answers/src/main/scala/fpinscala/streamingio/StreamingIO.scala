@@ -314,7 +314,7 @@ object SimpleStreamTransducers {
 
     def drop[I](n: Int): Process[I,I] =
       if (n <= 0) id
-      else await(i => drop[I](n-1))
+      else await(_ => drop[I](n-1))
 
     def takeWhile[I](f: I => Boolean): Process[I,I] =
       await(i =>
@@ -341,12 +341,12 @@ object SimpleStreamTransducers {
      * the next element, and so on.
      */
     def count[I]: Process[I,Int] =
-      lift((i: I) => 1.0) |> sum |> lift(_.toInt)
+      lift((_: I) => 1.0) |> sum |> lift(_.toInt)
 
     /* For comparison, here is an explicit recursive implementation. */
     def count2[I]: Process[I,Int] = {
       def go(n: Int): Process[I,Int] =
-        await((i: I) => emit(n+1, go(n+1)))
+        await((_: I) => emit(n+1, go(n+1)))
       go(0)
     }
 
@@ -442,7 +442,7 @@ object SimpleStreamTransducers {
     /* Awaits then emits a single value, then halts. */
     def echo[I]: Process[I,I] = await(i => emit(i))
 
-    def skip[I,O]: Process[I,O] = await(i => Halt())
+    def skip[I,O]: Process[I,O] = await(_ => Halt())
     def ignore[I,O]: Process[I,O] = skip.repeat
 
     def terminated[I]: Process[I,Option[I]] =
@@ -620,7 +620,7 @@ object GeneralizedStreamTransducers {
       p2 match {
         case Halt(e) => this.kill onHalt { e2 => Halt(e) ++ Halt(e2) }
         case Emit(h, t) => Emit(h, this |> t)
-        case Await(req,recv) => this match {
+        case Await(_,recv) => this match {
           case Halt(err) => Halt(err) |> recv(Left(err))
           case Emit(h,t) => t |> Try(recv(Right(h)))
           case Await(req0,recv0) => await(req0)(recv0 andThen (_ |> p2))
@@ -630,12 +630,12 @@ object GeneralizedStreamTransducers {
 
     @annotation.tailrec
     final def kill[O2]: Process[F,O2] = this match {
-      case Await(req,recv) => recv(Left(Kill)).drain.onHalt {
+      case Await(_,recv) => recv(Left(Kill)).drain.onHalt {
         case Kill => Halt(End) // we convert the `Kill` exception back to normal termination
         case e => Halt(e)
       }
       case Halt(e) => Halt(e)
-      case Emit(h, t) => t.kill
+      case Emit(_, t) => t.kill
     }
 
     /** Alias for `this |> p2`. */
@@ -644,7 +644,7 @@ object GeneralizedStreamTransducers {
 
     final def drain[O2]: Process[F,O2] = this match {
       case Halt(e) => Halt(e)
-      case Emit(h, t) => t.drain
+      case Emit(_, t) => t.drain
       case Await(req,recv) => Await(req, recv andThen (_.drain))
     }
 
@@ -673,13 +673,13 @@ object GeneralizedStreamTransducers {
         case Halt(e) => this.kill onComplete p2.kill onComplete Halt(e)
         case Emit(h,t) => Emit(h, (this tee p2)(t))
         case Await(side, recv) => side.get match {
-          case Left(isO) => this match {
+          case Left(_) => this match {
             case Halt(e) => p2.kill onComplete Halt(e)
             case Emit(o,ot) => (ot tee p2)(Try(recv(Right(o))))
             case Await(reqL, recvL) =>
               await(reqL)(recvL andThen (this2 => this2.tee(p2)(t)))
           }
-          case Right(isO2) => p2 match {
+          case Right(_) => p2 match {
             case Halt(e) => this.kill onComplete Halt(e)
             case Emit(o2,ot) => (this tee ot)(Try(recv(Right(o2))))
             case Await(reqR, recvR) =>
@@ -784,7 +784,7 @@ object GeneralizedStreamTransducers {
             go(next, acc)
         }
       try go(src, IndexedSeq())
-      finally E.shutdown
+      finally E.shutdown()
     }
 
     /*
@@ -797,7 +797,7 @@ object GeneralizedStreamTransducers {
       await(IO(new BufferedReader(new FileReader("lines.txt")))) {
         case Right(b) =>
           lazy val next: Process[IO,String] = await(IO(b.readLine)) {
-            case Left(e) => await(IO(b.close))(_ => Halt(e))
+            case Left(e) => await(IO(b.close()))(_ => Halt(e))
             case Right(line) => Emit(line, next)
           }
           next
@@ -1005,7 +1005,7 @@ object GeneralizedStreamTransducers {
       resource[FileWriter, String => Process[IO,Unit]]
         { IO { new FileWriter(file, append) }}
         { w => constant { (s: String) => eval[IO,Unit](IO(w.write(s))) }}
-        { w => eval_(IO(w.close)) }
+        { w => eval_(IO(w.close())) }
 
     /* The infinite, constant stream. */
     def constant[A](a: A): Process[IO,A] =
@@ -1071,9 +1071,9 @@ object GeneralizedStreamTransducers {
                   }
                 rows
             }
-            { p => IO { p._1.close } } // close the ResultSet
+            { p => IO { p._1.close() } } // close the ResultSet
         }}
-        { c => IO(c.close) }
+        { c => IO(c.close()) }
 
     /*
      * We can allocate resources dynamically when defining a `Process`.

@@ -221,7 +221,7 @@ trait Traverse[F[_]] extends Functor[F] with Foldable[F] { self =>
 
   def zip[A,B](fa: F[A], fb: F[B]): F[(A, B)] =
     (mapAccum(fa, toList(fb)) {
-      case (a, Nil) => sys.error("zip: Incompatible shapes.")
+      case (_, Nil) => sys.error("zip: Incompatible shapes.")
       case (a, b :: bs) => ((a, b), bs)
     })._1
 

@@ -48,13 +48,13 @@ object Tree {
   }
   
   def sizeViaFold[A](t: Tree[A]): Int = 
-    fold(t)(a => 1)(1 + _ + _)
+    fold(t)(_ => 1)(1 + _ + _)
   
   def maximumViaFold(t: Tree[Int]): Int = 
     fold(t)(a => a)(_ max _)
   
   def depthViaFold[A](t: Tree[A]): Int = 
-    fold(t)(a => 0)((d1,d2) => 1 + (d1 max d2))
+    fold(t)(_ => 0)((d1, d2) => 1 + (d1 max d2))
   
   /*
   Note the type annotation required on the expression `Leaf(f(a))`. Without this annotation, we get an error like this: 

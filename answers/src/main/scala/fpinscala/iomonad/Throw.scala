@@ -29,7 +29,7 @@ object Throw extends Monad[Throw] {
 
   /* Defer evaluation of `f(a)` to the central evaluation loop. */
   def defer[A,B](a: A)(f: A => B): B =
-    throw new Call(a, f)
+    throw Call(a, f)
 
   /* Central evaluation loop. */
   def ap[A,B](a: A)(f: A => B): B = {
