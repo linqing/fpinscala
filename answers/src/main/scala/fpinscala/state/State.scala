@@ -295,7 +295,7 @@ object State {
   * 这个糖果贩卖机有两种类型的输入：
   *   1. 投币：
   *   2. 拧一下把手取糖果
-  *   机器有三个状态量：锁定状态，剩余糖果数量，收纳的硬币数量。
+  * 机器有三个状态量：锁定状态，剩余糖果数量，收纳的硬币数量。
   */
 sealed trait Input
 case object Coin extends Input
@@ -311,9 +311,9 @@ object Candy {
         case (Coin, Machine(false, _, _)) => s
         case (Turn, Machine(true, _, _)) => s
         case (Coin, Machine(true, candy, coin)) =>
-          Machine(false, candy, coin + 1)
+          Machine(locked = false, candy, coin + 1)
         case (Turn, Machine(false, candy, coin)) =>
-          Machine(true, candy - 1, coin)
+          Machine(locked = true, candy - 1, coin)
       }
 
   def simulateMachine(inputs: List[Input]): State[Machine, (Int, Int)] = for {

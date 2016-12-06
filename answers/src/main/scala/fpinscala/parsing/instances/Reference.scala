@@ -17,33 +17,39 @@ object ReferenceTypes {
   case class ParseState(loc: Location) {
     def advanceBy(numChars: Int): ParseState =
       copy(loc = loc.copy(offset = loc.offset + numChars))
+
     def input: String = loc.input.substring(loc.offset)
+
     def slice(n: Int): String = loc.input.substring(loc.offset, loc.offset + n)
   }
 
   /* Likewise, we define a few helper functions on `Result`. */
   sealed trait Result[+A] {
-    def extract: Either[ParseError,A] = this match {
-      case Failure(e,_) => Left(e)
-      case Success(a,_) => Right(a)
+    def extract: Either[ParseError, A] = this match {
+      case Failure(e, _) => Left(e)
+      case Success(a, _) => Right(a)
     }
+
     /* Used by `attempt`. */
     def uncommit: Result[A] = this match {
-      case Failure(e,true) => Failure(e,false)
+      case Failure(e, true) => Failure(e, isCommitted = false)
       case _ => this
     }
+
     /* Used by `flatMap` */
     def addCommit(isCommitted: Boolean): Result[A] = this match {
-      case Failure(e,c) => Failure(e, c || isCommitted)
+      case Failure(e, c) => Failure(e, c || isCommitted)
       case _ => this
     }
+
     /* Used by `scope`, `label`. */
     def mapError(f: ParseError => ParseError): Result[A] = this match {
-      case Failure(e,c) => Failure(f(e),c)
+      case Failure(e, c) => Failure(f(e), c)
       case _ => this
     }
+
     def advanceSuccess(n: Int): Result[A] = this match {
-      case Success(a,m) => Success(a,n+m)
+      case Success(a, m) => Success(a, n + m)
       case _ => this
     }
   }
@@ -56,17 +62,17 @@ object ReferenceTypes {
   def firstNonmatchingIndex(s1: String, s2: String, offset: Int): Int = {
     var i = 0
     while (i < s1.length && i < s2.length) {
-      if (s1.charAt(i+offset) != s2.charAt(i)) return i
+      if (s1.charAt(i + offset) != s2.charAt(i)) return i
       i += 1
     }
-    if (s1.length-offset >= s2.length) -1
-    else s1.length-offset
+    if (s1.length - offset >= s2.length) -1
+    else s1.length - offset
   }
 }
 
 object Reference extends Parsers[Parser] {
 
-  def run[A](p: Parser[A])(s: String): Either[ParseError,A] = {
+  def run[A](p: Parser[A])(s: String): Either[ParseError, A] = {
     val s0 = ParseState(Location(s))
     p(s0).extract
   }
@@ -76,16 +82,16 @@ object Reference extends Parsers[Parser] {
 
   def or[A](p: Parser[A], p2: => Parser[A]): Parser[A] =
     s => p(s) match {
-      case Failure(_,false) => p2(s)
+      case Failure(_, false) => p2(s)
       case r => r // committed failure or success skips running `p2`
     }
 
-  def flatMap[A,B](f: Parser[A])(g: A => Parser[B]): Parser[B] =
+  def flatMap[A, B](f: Parser[A])(g: A => Parser[B]): Parser[B] =
     s => f(s) match {
-      case Success(a,n) => g(a)(s.advanceBy(n))
-                           .addCommit(n != 0)
-                           .advanceSuccess(n)
-      case f@Failure(_,_) => f
+      case Success(a, n) => g(a)(s.advanceBy(n))
+        .addCommit(n != 0)
+        .advanceSuccess(n)
+      case f@Failure(_, _) => f
     }
 
   def string(w: String): Parser[String] = {
@@ -103,28 +109,29 @@ object Reference extends Parsers[Parser] {
    * failures are uncommitted */
   def regex(r: Regex): Parser[String] = {
     val msg = "regex " + r
-    s => r.findPrefixOf(s.input) match {
-      case None => Failure(s.loc.toError(msg), false)
-      case Some(m) => Success(m,m.length)
-    }
+    s =>
+      r.findPrefixOf(s.input) match {
+        case None => Failure(s.loc.toError(msg), isCommitted = false)
+        case Some(m) => Success(m, m.length)
+      }
   }
 
   def scope[A](msg: String)(p: Parser[A]): Parser[A] =
-    s => p(s).mapError(_.push(s.loc,msg))
+    s => p(s).mapError(_.push(s.loc, msg))
 
   def label[A](msg: String)(p: Parser[A]): Parser[A] =
     s => p(s).mapError(_.label(msg))
 
   def fail[A](msg: String): Parser[A] =
-    s => Failure(s.loc.toError(msg), true)
+    s => Failure(s.loc.toError(msg), isCommitted = true)
 
   def attempt[A](p: Parser[A]): Parser[A] =
     s => p(s).uncommit
 
   def slice[A](p: Parser[A]): Parser[String] =
     s => p(s) match {
-      case Success(_,n) => Success(s.slice(n),n)
-      case f@Failure(_,_) => f
+      case Success(_, n) => Success(s.slice(n), n)
+      case f@Failure(_, _) => f
     }
 
   /* We provide an overridden version of `many` that accumulates
@@ -134,13 +141,15 @@ object Reference extends Parsers[Parser] {
   override def many[A](p: Parser[A]): Parser[List[A]] =
     s => {
       val buf = new collection.mutable.ListBuffer[A]
+
       def go(p: Parser[A], offset: Int): Result[List[A]] = {
         p(s.advanceBy(offset)) match {
-          case Success(a,n) => buf += a; go(p, offset+n)
-          case f@Failure(_,true) => f
-          case Failure(_,_) => Success(buf.toList,offset)
+          case Success(a, n) => buf += a; go(p, offset + n)
+          case f@Failure(_, true) => f
+          case Failure(_, _) => Success(buf.toList, offset)
         }
       }
+
       go(p, 0)
     }
 }

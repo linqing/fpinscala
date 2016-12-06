@@ -9,16 +9,24 @@ object Par {
 
   def run[A](s: ExecutorService)(a: Par[A]): Future[A] = a(s)
 
-  def unit[A](a: A): Par[A] = (_: ExecutorService) => UnitFuture(a) // `unit` is represented as a function that returns a `UnitFuture`, which is a simple implementation of `Future` that just wraps a constant value. It doesn't use the `ExecutorService` at all. It's always done and can't be cancelled. Its `get` method simply returns the value that we gave it.
+  def unit[A](a: A): Par[A] = (_: ExecutorService) => UnitFuture(a)
+  // `unit` is represented as a function that returns a `UnitFuture`, which is a simple implementation of `Future` that just wraps a constant value. It doesn't use the `ExecutorService` at all. It's always done and can't be cancelled. Its `get` method simply returns the value that we gave it.
 
   private case class UnitFuture[A](get: A) extends Future[A] {
     def isDone = true
+
     def get(timeout: Long, units: TimeUnit): A = get
+
     def isCancelled = false
+
     def cancel(evenIfRunning: Boolean): Boolean = false
   }
 
-  def map2[A,B,C](a: Par[A], b: Par[B])(f: (A,B) => C): Par[C] = // `map2` doesn't evaluate the call to `f` in a separate logical thread, in accord with our design choice of having `fork` be the sole function in the API for controlling parallelism. We can always do `fork(map2(a,b)(f))` if we want the evaluation of `f` to occur in a separate thread.
+  /** 练习 7.2
+    * 设计（自己写出来函数签名）map2函数，并实现之。
+    * map2： 给一个函数，将两个Par合并成一个Par。
+    */
+  def map2[A, B, C](a: Par[A], b: Par[B])(f: (A, B) => C): Par[C] = // `map2` doesn't evaluate the call to `f` in a separate logical thread, in accord with our design choice of having `fork` be the sole function in the API for controlling parallelism. We can always do `fork(map2(a,b)(f))` if we want the evaluation of `f` to occur in a separate thread.
     (es: ExecutorService) => {
       val af = a(es)
       val bf = b(es)
@@ -32,16 +40,16 @@ object Par {
 
   def lazyUnit[A](a: => A): Par[A] = fork(unit(a))
 
-  def asyncF[A,B](f: A => B): A => Par[B] =
+  def asyncF[A, B](f: A => B): A => Par[B] =
     a => lazyUnit(f(a))
 
-  def map[A,B](pa: Par[A])(f: A => B): Par[B] =
-    map2(pa, unit(()))((a,_) => f(a))
+  def map[A, B](pa: Par[A])(f: A => B): Par[B] =
+    map2(pa, unit(()))((a, _) => f(a))
 
   def sortPar(parList: Par[List[Int]]): Par[List[Int]] = map(parList)(_.sorted)
 
   def sequence_simple[A](l: List[Par[A]]): Par[List[A]] =
-    l.foldRight[Par[List[A]]](unit(List()))((h,t) => map2(h,t)(_ :: _))
+    l.foldRight[Par[List[A]]](unit(List()))((h, t) => map2(h, t)(_ :: _))
 
   // This implementation forks the recursive step off to a new logical thread,
   // making it effectively tail-recursive. However, we are constructing
@@ -49,10 +57,10 @@ object Par {
   // dividing the list in half, and running both halves in parallel.
   // See `sequenceBalanced` below.
   def sequenceRight[A](as: List[Par[A]]): Par[List[A]] =
-    as match {
-      case Nil => unit(Nil)
-      case h :: t => map2(h, fork(sequenceRight(t)))(_ :: _)
-    }
+  as match {
+    case Nil => unit(Nil)
+    case h :: t => map2(h, fork(sequenceRight(t)))(_ :: _)
+  }
 
   // We define `sequenceBalanced` using `IndexedSeq`, which provides an
   // efficient function for splitting the sequence in half.
@@ -60,7 +68,7 @@ object Par {
     if (as.isEmpty) unit(Vector())
     else if (as.length == 1) map(as.head)(a => Vector(a))
     else {
-      val (l,r) = as.splitAt(as.length/2)
+      val (l, r) = as.splitAt(as.length / 2)
       map2(sequenceBalanced(l), sequenceBalanced(r))(_ ++ _)
     }
   }
@@ -70,7 +78,7 @@ object Par {
 
   def parFilter[A](l: List[A])(f: A => Boolean): Par[List[A]] = {
     val pars: List[Par[List[A]]] =
-      l map (asyncF((a: A) => if (f(a)) List(a) else List()))
+      l map asyncF((a: A) => if (f(a)) List(a) else List())
     map(sequence(pars))(_.flatten) // convenience method on `List` for concatenating a list of lists
   }
 
@@ -94,20 +102,20 @@ object Par {
   def choiceViaChoiceN[A](a: Par[Boolean])(ifTrue: Par[A], ifFalse: Par[A]): Par[A] =
     choiceN(map(a)(b => if (b) 0 else 1))(List(ifTrue, ifFalse))
 
-  def choiceMap[K,V](key: Par[K])(choices: Map[K,Par[V]]): Par[V] =
+  def choiceMap[K, V](key: Par[K])(choices: Map[K, Par[V]]): Par[V] =
     es => {
       val k = run(es)(key).get
       run(es)(choices(k))
     }
 
-  def chooser[A,B](p: Par[A])(choices: A => Par[B]): Par[B] =
+  def chooser[A, B](p: Par[A])(choices: A => Par[B]): Par[B] =
     es => {
       val k = run(es)(p).get
       run(es)(choices(k))
     }
 
   /* `chooser` is usually called `flatMap` or `bind`. */
-  def flatMap[A,B](p: Par[A])(choices: A => Par[B]): Par[B] =
+  def flatMap[A, B](p: Par[A])(choices: A => Par[B]): Par[B] =
     es => {
       val k = run(es)(p).get
       run(es)(choices(k))
@@ -126,8 +134,9 @@ object Par {
   def joinViaFlatMap[A](a: Par[Par[A]]): Par[A] =
     flatMap(a)(x => x)
 
-  def flatMapViaJoin[A,B](p: Par[A])(f: A => Par[B]): Par[B] =
+  def flatMapViaJoin[A, B](p: Par[A])(f: A => Par[B]): Par[B] =
     join(map(p)(f))
+
   /* Gives us infix syntax for `Par`. */
   implicit def toParOps[A](p: Par[A]): ParOps[A] = new ParOps(p)
 
@@ -137,12 +146,14 @@ object Par {
 }
 
 object Examples {
+
   import Par._
+
   def sum(ints: IndexedSeq[Int]): Int = // `IndexedSeq` is a superclass of random-access sequences like `Vector` in the standard library. Unlike lists, these sequences provide an efficient `splitAt` method for dividing them into two parts at a particular index.
     if (ints.size <= 1)
       ints.headOption getOrElse 0 // `headOption` is a method defined on all collections in Scala. We saw this function in chapter 3.
     else {
-      val (l,r) = ints.splitAt(ints.length/2) // Divide the sequence in half using the `splitAt` function.
+      val (l, r) = ints.splitAt(ints.length / 2) // Divide the sequence in half using the `splitAt` function.
       sum(l) + sum(r) // Recursively sum both halves and add the results together.
     }
 }
