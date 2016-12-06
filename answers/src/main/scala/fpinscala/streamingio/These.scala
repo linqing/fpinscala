@@ -19,7 +19,7 @@ trait These[+A,+B] {
   def mapR[A2>:A,B2](f: B => B2): These[A2,B2] = 
     bimap(identity, f)
 
-  def isBoth = this match {
+  def isBoth: Boolean = this match {
     case Both(_,_) => true
     case _ => false
   }

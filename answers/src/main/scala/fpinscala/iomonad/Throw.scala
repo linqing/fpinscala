@@ -21,7 +21,7 @@ object Throw extends Monad[Throw] {
 
   /* Exception indicating that the central loop should call `f(a)`. */
   case class Call[A,+B] private[Throw] (a: A, f: A => B) extends Exception {
-    override def fillInStackTrace = this
+    override def fillInStackTrace: Call[A, B] = this
   }
 
   case class Done[+A](a: A) extends Throw[A]

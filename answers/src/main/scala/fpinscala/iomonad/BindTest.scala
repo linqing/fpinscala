@@ -28,8 +28,8 @@ object BindTest extends App {
   import fpinscala.parallelism.Nonblocking._
 
   object ParMonad extends Monad[Par] {
-    def unit[A](a: => A) = Par.unit(a)
-    def flatMap[A,B](pa: Par[A])(f: A => Par[B]) = Par.fork { Par.flatMap(pa)(f) }
+    def unit[A](a: => A): Par[A] = Par.unit(a)
+    def flatMap[A,B](pa: Par[A])(f: A => Par[B]): Par[B] = Par.fork { Par.flatMap(pa)(f) }
   }
 
   val pool = java.util.concurrent.Executors.newFixedThreadPool(4)

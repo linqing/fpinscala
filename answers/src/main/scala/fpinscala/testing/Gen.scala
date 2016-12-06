@@ -111,14 +111,14 @@ object Prop {
     }
 
   val ES: ExecutorService = Executors.newCachedThreadPool
-  val p1 = Prop.forAll(Gen.unit(Par.unit(1)))(i =>
+  val p1: Prop = Prop.forAll(Gen.unit(Par.unit(1)))(i =>
     Par.map(i)(_ + 1)(ES).get == Par.unit(2)(ES).get)
 
   def check(p: => Boolean): Prop = Prop { (_, _, _) =>
     if (p) Passed else Falsified("()", 0)
   }
 
-  val p2 = check {
+  val p2: Prop = check {
     val p = Par.map(Par.unit(1))(_ + 1)
     val p2 = Par.unit(2)
     p(ES).get == p2(ES).get
@@ -127,14 +127,14 @@ object Prop {
   def equal[A](p: Par[A], p2: Par[A]): Par[Boolean] =
     Par.map2(p,p2)(_ == _)
 
-  val p3 = check {
+  val p3: Prop = check {
     equal (
       Par.map(Par.unit(1))(_ + 1),
       Par.unit(2)
     ) (ES) get
   }
 
-  val S = weighted(
+  val S: Gen[ExecutorService] = weighted(
     choose(1,4).map(Executors.newFixedThreadPool) -> .75,
     unit(Executors.newCachedThreadPool) -> .25) // `a -> b` is syntax sugar for `(a,b)`
 
@@ -150,11 +150,11 @@ object Prop {
   def forAllPar3[A](g: Gen[A])(f: A => Par[Boolean]): Prop =
     forAll(S ** g) { case s ** a => f(a)(s).get }
 
-  val pint = Gen.choose(0,10) map (Par.unit(_))
-  val p4 =
+  val pint: Gen[Par[SuccessCount]] = Gen.choose(0,10) map (Par.unit(_))
+  val p4: Prop =
     forAllPar(pint)(n => equal(Par.map(n)(y => y), n))
 
-  val forkProp = Prop.forAllPar(pint2)(i => equal(Par.fork(i), i)) tag "fork"
+  val forkProp: Prop = Prop.forAllPar(pint2)(i => equal(Par.fork(i), i)) tag "fork"
 }
 
 case class Gen[+A](sample: State[RNG,A]) {
@@ -245,8 +245,8 @@ object Gen {
 
   implicit def unsized[A](g: Gen[A]): SGen[A] = SGen(_ => g)
 
-  val smallInt = Gen.choose(-10,10)
-  val maxProp = forAll(listOf(smallInt)) { l =>
+  val smallInt: Gen[SuccessCount] = Gen.choose(-10,10)
+  val maxProp: Prop = forAll(listOf(smallInt)) { l =>
     val max = l.max
     !l.exists(_ > max) // No value greater than `max` should exist in `l`
   }
@@ -254,14 +254,14 @@ object Gen {
   def listOf1[A](g: Gen[A]): SGen[List[A]] =
     SGen(n => g.listOfN(n max 1))
 
-  val maxProp1 = forAll(listOf1(smallInt)) { l =>
+  val maxProp1: Prop = forAll(listOf1(smallInt)) { l =>
     val max = l.max
     !l.exists(_ > max) // No value greater than `max` should exist in `l`
   }
 
   // We specify that every sorted list is either empty, has one element,
   // or has no two consecutive elements `(a,b)` such that `a` is greater than `b`.
-  val sortedProp = forAll(listOf(smallInt)) { l =>
+  val sortedProp: Prop = forAll(listOf(smallInt)) { l =>
     val ls = l.sorted
     l.isEmpty || ls.tail.isEmpty || !ls.zip(ls.tail).exists { case (a,b) => a > b }
   }

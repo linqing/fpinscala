@@ -38,9 +38,9 @@ object SliceableTypes {
     def advanceBy(numChars: Int): ParseState =
       copy(loc = loc.copy(offset = loc.offset + numChars))
     def input: String = loc.input.substring(loc.offset)
-    def unslice = copy(isSliced = false)
-    def reslice(s: ParseState) = copy(isSliced = s.isSliced)
-    def slice(n: Int) = loc.input.substring(loc.offset, loc.offset + n)
+    def unslice: ParseState = copy(isSliced = false)
+    def reslice(s: ParseState): ParseState = copy(isSliced = s.isSliced)
+    def slice(n: Int): String = loc.input.substring(loc.offset, loc.offset + n)
   }
 
   /** The result of a parse--a `Parser[A]` returns a `Result[A]`.
@@ -78,7 +78,7 @@ object SliceableTypes {
   }
   case class Slice(length: Int) extends Result[String] {
     def extract(s: String) = Right(s.substring(0,length))
-    def slice = this
+    def slice: Slice = this
     def advanceSuccess(n: Int) = Slice(length+n)
   }
   case class Success[+A](get: A, length: Int) extends Result[A] {
@@ -88,8 +88,8 @@ object SliceableTypes {
   }
   case class Failure(get: ParseError, isCommitted: Boolean) extends Result[Nothing] {
     def extract(s: String) = Left(get)
-    def slice = this
-    def advanceSuccess(n: Int) = this
+    def slice: Failure = this
+    def advanceSuccess(n: Int): Failure = this
   }
 
   /** Returns -1 if s.startsWith(s2), otherwise returns the

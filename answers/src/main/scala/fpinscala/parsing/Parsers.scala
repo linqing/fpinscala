@@ -11,7 +11,7 @@ trait Parsers[Parser[+_]] { self => // so inner classes may call methods of trai
   def run[A](p: Parser[A])(input: String): Either[ParseError,A]
 
   implicit def string(s: String): Parser[String]
-  implicit def operators[A](p: Parser[A]) = ParserOps[A](p)
+  implicit def operators[A](p: Parser[A]): ParserOps[A] = ParserOps[A](p)
   implicit def asStringParser[A](a: A)(implicit f: A => Parser[String]):
     ParserOps[String] = ParserOps(f(a))
 
@@ -124,7 +124,7 @@ trait Parsers[Parser[+_]] { self => // so inner classes may call methods of trai
     map2(p, many(op ** p))((h,t) => t.foldLeft(h)((a,b) => b._1(a,b._2)))
 
   /** Wraps `p` in start/stop delimiters. */
-  def surround[A](start: Parser[Any], stop: Parser[Any])(p: => Parser[A]) =
+  def surround[A](start: Parser[Any], stop: Parser[Any])(p: => Parser[A]): Parser[A] =
     start *> p <* stop
 
   /** A parser that succeeds when given empty input. */
@@ -140,7 +140,7 @@ trait Parsers[Parser[+_]] { self => // so inner classes may call methods of trai
     def or[B>:A](p2: => Parser[B]): Parser[B] = self.or(p,p2)
 
     def map[B](f: A => B): Parser[B] = self.map(p)(f)
-    def many = self.many(p)
+    def many: Parser[List[A]] = self.many(p)
 
     def slice: Parser[String] = self.slice(p)
 
@@ -156,11 +156,11 @@ trait Parsers[Parser[+_]] { self => // so inner classes may call methods of trai
 
     def scope(msg: String): Parser[A] = self.scope(msg)(p)
 
-    def *>[B](p2: => Parser[B]) = self.skipL(p, p2)
-    def <*(p2: => Parser[Any]) = self.skipR(p, p2)
-    def token = self.token(p)
-    def sep(separator: Parser[Any]) = self.sep(p, separator)
-    def sep1(separator: Parser[Any]) = self.sep1(p, separator)
+    def *>[B](p2: => Parser[B]): Parser[B] = self.skipL(p, p2)
+    def <*(p2: => Parser[Any]): Parser[A] = self.skipR(p, p2)
+    def token: Parser[A] = self.token(p)
+    def sep(separator: Parser[Any]): Parser[List[A]] = self.sep(p, separator)
+    def sep1(separator: Parser[Any]): Parser[List[A]] = self.sep1(p, separator)
     def as[B](b: B): Parser[B] = self.map(self.slice(p))(_ => b)
     def opL(op: Parser[(A,A) => A]): Parser[A] = self.opL(p)(op)
   }
@@ -175,8 +175,8 @@ trait Parsers[Parser[+_]] { self => // so inner classes may call methods of trai
 
 case class Location(input: String, offset: Int = 0) {
 
-  lazy val line = input.slice(0,offset+1).count(_ == '\n') + 1
-  lazy val col = input.slice(0,offset+1).lastIndexOf('\n') match {
+  lazy val line: SuccessCount = input.slice(0,offset+1).count(_ == '\n') + 1
+  lazy val col: SuccessCount = input.slice(0,offset+1).lastIndexOf('\n') match {
     case -1 => offset + 1
     case lineStart => offset - lineStart
   }
@@ -184,14 +184,14 @@ case class Location(input: String, offset: Int = 0) {
   def toError(msg: String): ParseError =
     ParseError(List((this, msg)))
 
-  def advanceBy(n: Int) = copy(offset = offset+n)
+  def advanceBy(n: Int): Location = copy(offset = offset+n)
 
   /* Returns the line corresponding to this location */
   def currentLine: String =
     if (input.length > 1) input.lines.drop(line-1).next
     else ""
 
-  def columnCaret = (" " * (col-1)) + "^"
+  def columnCaret: FailedCase = (" " * (col-1)) + "^"
 }
 
 case class ParseError(stack: List[(Location,String)] = List()) {
@@ -220,7 +220,7 @@ case class ParseError(stack: List[(Location,String)] = List()) {
 
   { "MSFT" ; 24,
   */
-  override def toString =
+  override def toString: FailedCase =
     if (stack.isEmpty) "no error message"
     else {
       val collapsed = collapseStack(stack)

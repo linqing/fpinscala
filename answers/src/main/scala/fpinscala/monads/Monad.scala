@@ -87,28 +87,28 @@ object Monad {
   }
 
   val parMonad = new Monad[Par] {
-    def unit[A](a: => A) = Par.unit(a)
-    override def flatMap[A,B](ma: Par[A])(f: A => Par[B]) = Par.flatMap(ma)(f)
+    def unit[A](a: => A): Par[A] = Par.unit(a)
+    override def flatMap[A,B](ma: Par[A])(f: A => Par[B]): Par[B] = Par.flatMap(ma)(f)
   }
 
   def parserMonad[P[+_]](p: Parsers[P]) = new Monad[P] {
-    def unit[A](a: => A) = p.succeed(a)
-    override def flatMap[A,B](ma: P[A])(f: A => P[B]) = p.flatMap(ma)(f)
+    def unit[A](a: => A): P[A] = p.succeed(a)
+    override def flatMap[A,B](ma: P[A])(f: A => P[B]): P[B] = p.flatMap(ma)(f)
   }
 
   val optionMonad = new Monad[Option] {
     def unit[A](a: => A) = Some(a)
-    override def flatMap[A,B](ma: Option[A])(f: A => Option[B]) = ma flatMap f
+    override def flatMap[A,B](ma: Option[A])(f: A => Option[B]): Option[B] = ma flatMap f
   }
 
   val streamMonad = new Monad[Stream] {
     def unit[A](a: => A) = Stream(a)
-    override def flatMap[A,B](ma: Stream[A])(f: A => Stream[B]) = ma flatMap f
+    override def flatMap[A,B](ma: Stream[A])(f: A => Stream[B]): Stream[B] = ma flatMap f
   }
 
   val listMonad = new Monad[List] {
     def unit[A](a: => A) = List(a)
-    override def flatMap[A,B](ma: List[A])(f: A => List[B]) = ma flatMap f
+    override def flatMap[A,B](ma: List[A])(f: A => List[B]): List[B] = ma flatMap f
   }
 
   // Since `State` is a binary type constructor, we need to partially apply it
@@ -144,7 +144,7 @@ object Monad {
   def getState[S]: State[S,S] = State(s => (s,s))
   def setState[S](s: S): State[S,Unit] = State(_ => ((),s))
 
-  val F = stateMonad[Int]
+  val F: Monad[({type lambda[x] = State[Int, x]})#lambda] = stateMonad[Int]
 
   def zipWithIndex[A](as: List[A]): List[(Int,A)] =
     as.foldLeft(F.unit(List[(Int, A)]()))((acc,a) => for {

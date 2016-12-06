@@ -18,7 +18,7 @@ object ReferenceTypes {
     def advanceBy(numChars: Int): ParseState =
       copy(loc = loc.copy(offset = loc.offset + numChars))
     def input: String = loc.input.substring(loc.offset)
-    def slice(n: Int) = loc.input.substring(loc.offset, loc.offset + n)
+    def slice(n: Int): String = loc.input.substring(loc.offset, loc.offset + n)
   }
 
   /* Likewise, we define a few helper functions on `Result`. */

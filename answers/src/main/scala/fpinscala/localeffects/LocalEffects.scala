@@ -2,6 +2,8 @@ package fpinscala.localeffects
 
 import fpinscala.monads._
 
+import scala.collection.mutable
+
 object Mutable {
   def quicksort(xs: List[Int]): List[Int] = if (xs.isEmpty) xs else {
     val arr = xs.toArray
@@ -34,13 +36,13 @@ object Mutable {
 sealed trait ST[S,A] { self =>
   protected def run(s: S): (A,S)
   def map[B](f: A => B): ST[S,B] = new ST[S,B] {
-    def run(s: S) = {
+    def run(s: S): (B, S) = {
       val (a, s1) = self.run(s)
       (f(a), s1)
     }
   }
   def flatMap[B](f: A => ST[S,B]): ST[S,B] = new ST[S,B] {
-    def run(s: S) = {
+    def run(s: S): (B, S) = {
       val (a, s1) = self.run(s)
       f(a).run(s1)
     }
@@ -48,10 +50,10 @@ sealed trait ST[S,A] { self =>
 }
 
 object ST {
-  def apply[S,A](a: => A) = {
+  def apply[S,A](a: => A): ST[S, A] = {
     lazy val memo = a
     new ST[S,A] {
-      def run(s: S) = (memo, s)
+      def run(s: S): (A, S) = (memo, s)
     }
   }
   def runST[A](st: RunnableST[A]): A =
@@ -62,7 +64,7 @@ sealed trait STRef[S,A] {
   protected var cell: A
   def read: ST[S,A] = ST(cell)
   def write(a: => A): ST[S,Unit] = new ST[S,Unit] {
-    def run(s: S) = {
+    def run(s: S): (Unit, S) = {
       cell = a
       ((), s)
     }
@@ -71,7 +73,7 @@ sealed trait STRef[S,A] {
 
 object STRef {
   def apply[S,A](a: A): ST[S, STRef[S,A]] = ST(new STRef[S,A] {
-    var cell = a
+    var cell: A = a
   })
 }
 
@@ -86,7 +88,7 @@ sealed abstract class STArray[S,A](implicit manifest: Manifest[A]) {
 
   // Write a value at the give index of the array
   def write(i: Int, a: A): ST[S,Unit] = new ST[S,Unit] {
-    def run(s: S) = {
+    def run(s: S): (Unit, S) = {
       value(i) = a
       ((), s)
     }
@@ -115,17 +117,17 @@ object STArray {
   // Construct an array of the given size filled with the value v
   def apply[S,A:Manifest](sz: Int, v: A): ST[S, STArray[S,A]] =
     ST(new STArray[S,A] {
-      lazy val value = Array.fill(sz)(v)
+      lazy val value: Array[A] = Array.fill(sz)(v)
     })
 
   def fromList[S,A:Manifest](xs: List[A]): ST[S, STArray[S,A]] =
     ST(new STArray[S,A] {
-      lazy val value = xs.toArray
+      lazy val value: Array[A] = xs.toArray
     })
 }
 
 object Immutable {
-  def noop[S] = ST[S,Unit](())
+  def noop[S]: ST[S, Unit] = ST[S,Unit](())
 
   def partition[S](a: STArray[S,Int], l: Int, r: Int, pivot: Int): ST[S,Int] = for {
     vp <- a.read(pivot)
@@ -152,7 +154,7 @@ object Immutable {
 
   def quicksort(xs: List[Int]): List[Int] =
     if (xs.isEmpty) xs else ST.runST(new RunnableST[List[Int]] {
-      def apply[S] = for {
+      def apply[S]: ST[S, List[Int]] = for {
         arr    <- STArray.fromList(xs)
         size   <- arr.size
         _      <- qs(arr, 0, size - 1)
@@ -187,7 +189,7 @@ object STMap {
   })
 
   def fromMap[S,K,V](m: Map[K,V]): ST[S, STMap[S,K,V]] = ST(new STMap[S,K,V] {
-    val table = (HashMap.newBuilder[K,V] ++= m).result
+    val table: mutable.HashMap[K, V] = (HashMap.newBuilder[K,V] ++= m).result
   })
 }
 

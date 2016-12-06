@@ -15,11 +15,11 @@ object IO0 {
   trait IO { self =>
     def run: Unit
     def ++(io: IO): IO = new IO {
-      def run = { self.run; io.run }
+      def run: Unit = { self.run; io.run }
     }
   }
   object IO {
-    def empty: IO = new IO { def run = () }
+    def empty: IO = new IO { def run: Unit = () }
   }
 
                             /*
@@ -61,14 +61,14 @@ object IO1 {
   sealed trait IO[A] { self =>
     def run: A
     def map[B](f: A => B): IO[B] =
-      new IO[B] { def run = f(self.run) }
+      new IO[B] { def run: B = f(self.run) }
     def flatMap[B](f: A => IO[B]): IO[B] =
-      new IO[B] { def run = f(self.run).run }
+      new IO[B] { def run: B = f(self.run).run }
   }
 
   object IO extends Monad[IO] {
-    def unit[A](a: => A): IO[A] = new IO[A] { def run = a }
-    def flatMap[A,B](fa: IO[A])(f: A => IO[B]) = fa flatMap f
+    def unit[A](a: => A): IO[A] = new IO[A] { def run: A = a }
+    def flatMap[A,B](fa: IO[A])(f: A => IO[B]): IO[B] = fa flatMap f
     def apply[A](a: => A): IO[A] = unit(a) // syntax for IO { .. }
 
     def ref[A](a: A): IO[IORef[A]] = IO { new IORef(a) }
@@ -96,7 +96,7 @@ object IO1 {
   import IO._ // import all the `IO` combinators that come from `Monad`
 
   // An `IO[Unit]` that reads a line from the console and echoes it back.
-  val echo = ReadLine.flatMap(PrintLine)
+  val echo: IO[Unit] = ReadLine.flatMap(PrintLine)
 
   // Parses an `Int` by reading a line from the console.
   val readInt: IO[Int] = ReadLine.map(_.toInt)
@@ -128,7 +128,7 @@ object IO1 {
      q
 
                              */
-  val helpstring = """
+  val helpstring: String = """
   | The Amazing Factorial REPL, v2.0
   | q - quit
   | <number> - compute the factorial of the given number
@@ -179,7 +179,7 @@ object IO2a {
   object IO extends Monad[IO] { // Notice that none of these operations DO anything
     def unit[A](a: => A): IO[A] = Return(a)
     def flatMap[A,B](a: IO[A])(f: A => IO[B]): IO[B] = a flatMap f
-    def suspend[A](a: => IO[A]) =
+    def suspend[A](a: => IO[A]): IO[A] =
       Suspend(() => ()).flatMap { _ => a }
 
   }
@@ -187,7 +187,7 @@ object IO2a {
   def printLine(s: String): IO[Unit] =
     Suspend(() => Return(println(s)))
 
-  val p = IO.forever(printLine("Still going..."))
+  val p: IO[Nothing] = IO.forever(printLine("Still going..."))
 
   val actions: Stream[IO[Unit]] =
     Stream.fill(100000)(printLine("Still going..."))
@@ -270,7 +270,7 @@ object IO2b {
   object TailRec extends Monad[TailRec] {
     def unit[A](a: => A): TailRec[A] = Return(a)
     def flatMap[A,B](a: TailRec[A])(f: A => TailRec[B]): TailRec[B] = a flatMap f
-    def suspend[A](a: => TailRec[A]) =
+    def suspend[A](a: => TailRec[A]): TailRec[A] =
       Suspend(() => ()).flatMap { _ => a }
 
   }
@@ -378,7 +378,7 @@ object IO3 {
   def freeMonad[F[_]]: Monad[({type f[a] = Free[F,a]})#f] =
     new Monad[({type f[a] = Free[F,a]})#f] {
       def unit[A](a: => A) = Return(a)
-      def flatMap[A,B](fa: Free[F, A])(f: A => Free[F, B]) = fa flatMap f
+      def flatMap[A,B](fa: Free[F, A])(f: A => Free[F, B]): Free[F, B] = fa flatMap f
     }
 
   // Exercise 2: Implement a specialized `Function0` interpreter.
@@ -427,8 +427,8 @@ object IO3 {
   }
 
   case object ReadLine extends Console[Option[String]] {
-    def toPar = Par.lazyUnit(run)
-    def toThunk = () => run
+    def toPar: Par[Option[String]] = Par.lazyUnit(run)
+    def toThunk: () => Option[String] = () => run
 
     def run: Option[String] =
       try Some(readLine())
@@ -444,8 +444,8 @@ object IO3 {
   }
 
   case class PrintLine(line: String) extends Console[Unit] {
-    def toPar = Par.lazyUnit(println(line))
-    def toThunk = () => println(line)
+    def toPar: Par[Unit] = Par.lazyUnit(println(line))
+    def toThunk: () => Unit = () => println(line)
     def toReader = ConsoleReader { s => () } // noop
     def toState = ConsoleState { bufs => ((), bufs.copy(out = bufs.out :+ line)) } // append to the output
   }
@@ -475,14 +475,14 @@ object IO3 {
   type ~>[F[_], G[_]] = Translate[F,G] // gives us infix syntax `F ~> G` for `Translate[F,G]`
 
   implicit val function0Monad = new Monad[Function0] {
-    def unit[A](a: => A) = () => a
-    def flatMap[A,B](a: Function0[A])(f: A => Function0[B]) =
+    def unit[A](a: => A): () => A = () => a
+    def flatMap[A,B](a: Function0[A])(f: A => Function0[B]): () => B =
       () => f(a())()
   }
 
   implicit val parMonad = new Monad[Par] {
-    def unit[A](a: => A) = Par.unit(a)
-    def flatMap[A,B](a: Par[A])(f: A => Par[B]) = Par.fork { Par.flatMap(a)(f) }
+    def unit[A](a: => A): Par[A] = Par.unit(a)
+    def flatMap[A,B](a: Par[A])(f: A => Par[B]): Par[B] = Par.fork { Par.flatMap(a)(f) }
   }
 
   def runFree[F[_],G[_],A](free: Free[F,A])(t: F ~> G)(
@@ -495,9 +495,9 @@ object IO3 {
     }
 
   val consoleToFunction0 =
-    new (Console ~> Function0) { def apply[A](a: Console[A]) = a.toThunk }
+    new (Console ~> Function0) { def apply[A](a: Console[A]): () => A = a.toThunk }
   val consoleToPar =
-    new (Console ~> Par) { def apply[A](a: Console[A]) = a.toPar }
+    new (Console ~> Par) { def apply[A](a: Console[A]): Par[A] = a.toPar }
 
   def runConsoleFunction0[A](a: Free[Console,A]): () => A =
     runFree[Console,Function0,A](a)(consoleToFunction0)
@@ -524,7 +524,7 @@ object IO3 {
 
   def runConsole[A](a: Free[Console,A]): A =
     runTrampoline { translate(a)(new (Console ~> Function0) {
-      def apply[A](c: Console[A]) = c.toThunk
+      def apply[A](c: Console[A]): () => A = c.toThunk
     })}
 
 
@@ -553,7 +553,7 @@ object IO3 {
   object ConsoleState {
     implicit val monad = new Monad[ConsoleState] {
       def unit[A](a: => A) = ConsoleState(bufs => (a,bufs))
-      def flatMap[A,B](ra: ConsoleState[A])(f: A => ConsoleState[B]) = ra flatMap f
+      def flatMap[A,B](ra: ConsoleState[A])(f: A => ConsoleState[B]): ConsoleState[B] = ra flatMap f
     }
   }
 
@@ -567,14 +567,14 @@ object IO3 {
   object ConsoleReader {
     implicit val monad = new Monad[ConsoleReader] {
       def unit[A](a: => A) = ConsoleReader(_ => a)
-      def flatMap[A,B](ra: ConsoleReader[A])(f: A => ConsoleReader[B]) = ra flatMap f
+      def flatMap[A,B](ra: ConsoleReader[A])(f: A => ConsoleReader[B]): ConsoleReader[B] = ra flatMap f
     }
   }
 
   val consoleToState =
-    new (Console ~> ConsoleState) { def apply[A](a: Console[A]) = a.toState }
+    new (Console ~> ConsoleState) { def apply[A](a: Console[A]): ConsoleState[A] = a.toState }
   val consoleToReader =
-    new (Console ~> ConsoleReader) { def apply[A](a: Console[A]) = a.toReader }
+    new (Console ~> ConsoleReader) { def apply[A](a: Console[A]): ConsoleReader[A] = a.toReader }
 
   /* Can interpet these as before to convert our `ConsoleIO` to a pure value that does no I/O! */
   def runConsoleReader[A](io: ConsoleIO[A]): ConsoleReader[A] =
@@ -617,12 +617,12 @@ object IO3 {
     Par.async { (cb: Either[Throwable, Array[Byte]] => Unit) =>
       val buf = ByteBuffer.allocate(numBytes)
       file.read(buf, fromPosition, (), new CompletionHandler[Integer, Unit] {
-        def completed(bytesRead: Integer, ignore: Unit) = {
+        def completed(bytesRead: Integer, ignore: Unit): Unit = {
           val arr = new Array[Byte](bytesRead)
           buf.slice.get(arr, 0, bytesRead)
           cb(Right(arr))
         }
-        def failed(err: Throwable, ignore: Unit) =
+        def failed(err: Throwable, ignore: Unit): Unit =
           cb(Left(err))
       })
     }

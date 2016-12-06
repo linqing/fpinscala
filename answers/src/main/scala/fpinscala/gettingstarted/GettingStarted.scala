@@ -55,7 +55,7 @@ object MyModule {
 
   // We can generalize `formatAbs` and `formatFactorial` to
   // accept a _function_ as a parameter
-  def formatResult(name: String, n: Int, f: Int => Int) = {
+  def formatResult(name: String, n: Int, f: Int => Int): String = {
     val msg = "The %s of %d is %d."
     msg.format(name, n, f(n))
   }

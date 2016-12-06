@@ -120,7 +120,7 @@ object Strategy {
    */
   def fromExecutorService(es: ExecutorService): Strategy = new Strategy {
     def apply[A](a: => A): () => A = {
-      val f = es.submit { new Callable[A] { def call = a} }
+      val f = es.submit { new Callable[A] { def call: A = a} }
       () => f.get
     }
   }

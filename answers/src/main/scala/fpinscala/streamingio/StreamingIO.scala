@@ -1,6 +1,7 @@
 package fpinscala.streamingio
 
-import fpinscala.iomonad.{IO,Monad,Free,unsafePerformIO}
+import fpinscala.iomonad.{Free, IO, Monad, Monadic, unsafePerformIO}
+
 import language.implicitConversions
 import language.higherKinds
 import language.postfixOps
@@ -57,9 +58,9 @@ object ImperativeAndLazyIO {
 
   object Examples {
     val lines: Stream[String] = sys.error("defined elsewhere")
-    val ex1 = lines.zipWithIndex.exists(_._2 + 1 >= 40000)
-    val ex2 = lines.filter(!_.trim.isEmpty).zipWithIndex.exists(_._2 + 1 >= 40000)
-    val ex3 = lines.take(40000).map(_.head).indexOfSlice("abracadabra".toList)
+    val ex1: Boolean = lines.zipWithIndex.exists(_._2 + 1 >= 40000)
+    val ex2: Boolean = lines.filter(!_.trim.isEmpty).zipWithIndex.exists(_._2 + 1 >= 40000)
+    val ex3: Int = lines.take(40000).map(_.head).indexOfSlice("abracadabra".toList)
   }
 
                             /*
@@ -257,7 +258,7 @@ object SimpleStreamTransducers {
       }
 
     // enable monadic syntax for `Process` type
-    implicit def toMonadic[I,O](a: Process[I,O]) = monad[I].toMonadic(a)
+    implicit def toMonadic[I,O](a: Process[I,O]): Monadic[({type f[x] = Process[I, x]})#f, O] = monad[I].toMonadic(a)
 
     /**
      * A helper function to await an element or fall back to another process
@@ -405,7 +406,7 @@ object SimpleStreamTransducers {
      * Using zip, we can then define `mean`. Again, this definition
      * operates in a single pass.
      */
-    val mean2 = (sum zip count) |> lift { case (s,n) => s / n }
+    val mean2: Process[Double, Double] = (sum zip count) |> lift { case (s,n) => s / n }
 
     /*
      * Exercise 6: Implement `zipWithIndex`.
@@ -426,6 +427,7 @@ object SimpleStreamTransducers {
     def any: Process[Boolean,Boolean] =
       loop(false)((b:Boolean,s) => (s || b, s || b))
 
+    //noinspection TypeAnnotation
     /* A trimmed `exists`, containing just the final result. */
     def existsResult[I](f: I => Boolean) =
       exists(f) |> takeThrough(!_) |> dropWhile(!_) |> echo.orElse(emit(false))

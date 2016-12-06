@@ -48,8 +48,8 @@ trait Applicative[F[_]] extends Functor[F] {
   def product[G[_]](G: Applicative[G]): Applicative[({type f[x] = (F[x], G[x])})#f] = {
     val self = this
     new Applicative[({type f[x] = (F[x], G[x])})#f] {
-      def unit[A](a: => A) = (self.unit(a), G.unit(a))
-      override def apply[A,B](fs: (F[A => B], G[A => B]))(p: (F[A], G[A])) =
+      def unit[A](a: => A): (F[A], G[A]) = (self.unit(a), G.unit(a))
+      override def apply[A,B](fs: (F[A => B], G[A => B]))(p: (F[A], G[A])): (F[B], G[B]) =
         (self.apply(fs._1)(p._1), G.apply(fs._2)(p._2))
     }
   }
@@ -62,8 +62,8 @@ trait Applicative[F[_]] extends Functor[F] {
   def compose[G[_]](G: Applicative[G]): Applicative[({type f[x] = F[G[x]]})#f] = {
     val self = this
     new Applicative[({type f[x] = F[G[x]]})#f] {
-      def unit[A](a: => A) = self.unit(G.unit(a))
-      override def map2[A,B,C](fga: F[G[A]], fgb: F[G[B]])(f: (A,B) => C) =
+      def unit[A](a: => A): F[G[A]] = self.unit(G.unit(a))
+      override def map2[A,B,C](fga: F[G[A]], fgb: F[G[B]])(f: (A,B) => C): F[G[C]] =
         self.map2(fga, fgb)(G.map2(_,_)(f))
     }
   }
@@ -96,7 +96,7 @@ object Applicative {
   def validationApplicative[E]: Applicative[({type f[x] = Validation[E,x]})#f] =
     new Applicative[({type f[x] = Validation[E,x]})#f] {
       def unit[A](a: => A) = Success(a)
-      override def map2[A,B,C](fa: Validation[E,A], fb: Validation[E,B])(f: (A, B) => C) =
+      override def map2[A,B,C](fa: Validation[E,A], fb: Validation[E,B])(f: (A, B) => C): Validation[E, C] =
         (fa, fb) match {
           case (Success(a), Success(b)) => Success(f(a, b))
           case (Failure(h1, t1), Failure(h2, t2)) =>
@@ -141,7 +141,7 @@ object Monad {
   def eitherMonad[E]: Monad[({type f[x] = Either[E, x]})#f] =
     new Monad[({type f[x] = Either[E, x]})#f] {
       def unit[A](a: => A): Either[E, A] = Right(a)
-      override def flatMap[A,B](eea: Either[E, A])(f: A => Either[E, B]) = eea match {
+      override def flatMap[A,B](eea: Either[E, A])(f: A => Either[E, B]): Either[E, B] = eea match {
         case Right(a) => f(a)
         case Left(b) => Left(b)
       }
@@ -172,7 +172,7 @@ trait Traverse[F[_]] extends Functor[F] with Foldable[F] { self =>
   type Id[A] = A
 
   val idMonad = new Monad[Id] {
-    def unit[A](a: => A) = a
+    def unit[A](a: => A): A = a
     override def flatMap[A,B](a: A)(f: A => B): B = f(a)
   }
 
@@ -243,7 +243,7 @@ trait Traverse[F[_]] extends Functor[F] with Foldable[F] { self =>
 
   def compose[G[_]](implicit G: Traverse[G]): Traverse[({type f[x] = F[G[x]]})#f] =
     new Traverse[({type f[x] = F[G[x]]})#f] {
-      override def traverse[M[_]:Applicative,A,B](fa: F[G[A]])(f: A => M[B]) =
+      override def traverse[M[_]:Applicative,A,B](fa: F[G[A]])(f: A => M[B]): M[F[G[B]]] =
         self.traverse(fa)((ga: G[A]) => G.traverse(ga)(f))
     }
 }
